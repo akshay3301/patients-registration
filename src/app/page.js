@@ -112,7 +112,7 @@ export default function Home() {
       </main>
 
       <footer className="py-4 text-center text-gray-500 text-sm mt-8">
-        Patient Registration System - Frontend Only with PGlite
+        Patient Registration System
       </footer>
     </div>
   );
