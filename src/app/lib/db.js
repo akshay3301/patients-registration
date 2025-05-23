@@ -223,15 +223,18 @@ export const executeQuery = async (sqlQuery) => {
     }
 
     const result = await database.query(sqlQuery);
-    return result.command === "SELECT"
-      ? result.rows
-      : [
-          {
-            operation: result.command,
-            rowCount: result.rowCount,
-            message: `${result.command} operation completed successfully`,
-          },
-        ];
+
+    if (Array.isArray(result?.rows)) {
+      return result.rows;
+    } else {
+      return [
+        {
+          operation: result?.command || "UNKNOWN",
+          rowCount: result?.rowCount ?? 0,
+          message: `${result?.command || "Operation"} completed successfully`,
+        },
+      ];
+    }
   } catch (error) {
     console.error("Error executing query:", error);
     throw error;

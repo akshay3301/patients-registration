@@ -26,7 +26,6 @@ const Navbar = () => {
                 Home
               </Link>
             </li>
-            {/* Add more nav items if needed */}
           </ul>
         </div>
       </div>
