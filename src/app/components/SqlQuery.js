@@ -21,7 +21,6 @@ export default function SqlQuery({ refreshTrigger, onQueryExecuted }) {
     "SELECT EXTRACT(YEAR FROM createdAt) as year, COUNT(*) as registrations FROM patients GROUP BY year ORDER BY year",
   ];
 
-  // Auto-run the initial query when component mounts or refreshTrigger changes
   useEffect(() => {
     if (query.trim()) {
       runQuery();
@@ -41,7 +40,6 @@ export default function SqlQuery({ refreshTrigger, onQueryExecuted }) {
       const result = await executeQuery(query);
       setQueryResult(result);
 
-      // Add to query history (keep last 10)
       setQueryHistory((prev) => {
         const newHistory = [
           { query: query.trim(), timestamp: new Date(), success: true },
@@ -50,7 +48,6 @@ export default function SqlQuery({ refreshTrigger, onQueryExecuted }) {
         return newHistory;
       });
 
-      // Notify parent if this was a modifying query
       const modifyingKeywords = [
         "insert",
         "update",
@@ -71,7 +68,6 @@ export default function SqlQuery({ refreshTrigger, onQueryExecuted }) {
       setError(errorMessage);
       setQueryResult(null);
 
-      // Add failed query to history
       setQueryHistory((prev) => [
         {
           query: query.trim(),
@@ -91,6 +87,12 @@ export default function SqlQuery({ refreshTrigger, onQueryExecuted }) {
 
   const renderQueryResults = () => {
     if (!queryResult) return null;
+
+    const formatDateValue = (value) => {
+      const date = new Date(value);
+      if (isNaN(date)) return String(value);
+      return date.toISOString().split("T")[0];
+    };
 
     if (queryResult.length === 0) {
       return (
@@ -194,6 +196,8 @@ export default function SqlQuery({ refreshTrigger, onQueryExecuted }) {
                     >
                       {row[column] === null ? (
                         <span className="text-gray-400 italic">NULL</span>
+                      ) : column.toLowerCase() === "dateofbirth" ? (
+                        formatDateValue(row[column])
                       ) : (
                         String(row[column])
                       )}
@@ -219,7 +223,6 @@ export default function SqlQuery({ refreshTrigger, onQueryExecuted }) {
       </h2>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Query Input Section */}
         <div className="lg:col-span-2">
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-800 mb-2">
@@ -268,7 +271,6 @@ export default function SqlQuery({ refreshTrigger, onQueryExecuted }) {
             </span>
           </div>
 
-          {/* Sample Queries */}
           <div className="mb-6">
             <h3 className="text-sm font-medium text-gray-700 mb-2">
               Sample Queries:
@@ -287,9 +289,7 @@ export default function SqlQuery({ refreshTrigger, onQueryExecuted }) {
           </div>
         </div>
 
-        {/* Query History and Schema */}
         <div className="lg:col-span-1">
-          {/* Database Schema */}
           <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
             <h3 className="font-medium text-blue-900 mb-3">Database Schema</h3>
             <div className="text-sm text-blue-800">
@@ -313,7 +313,6 @@ export default function SqlQuery({ refreshTrigger, onQueryExecuted }) {
             </div>
           </div>
 
-          {/* Query History */}
           {queryHistory.length > 0 && (
             <div className="p-4 bg-gray-50 border border-gray-200 rounded-md">
               <h3 className="font-medium text-gray-900 mb-3">Recent Queries</h3>
@@ -356,7 +355,6 @@ export default function SqlQuery({ refreshTrigger, onQueryExecuted }) {
         </div>
       </div>
 
-      {/* Error Display */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
           <div className="flex items-start">
@@ -379,7 +377,6 @@ export default function SqlQuery({ refreshTrigger, onQueryExecuted }) {
         </div>
       )}
 
-      {/* Loading State */}
       {isLoading && (
         <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
           <div className="flex items-center">
@@ -389,7 +386,6 @@ export default function SqlQuery({ refreshTrigger, onQueryExecuted }) {
         </div>
       )}
 
-      {/* Results */}
       {!isLoading && queryResult && renderQueryResults()}
     </div>
   );
