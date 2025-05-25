@@ -1,14 +1,17 @@
-
- Patient Registration System
+🏥 Patient Registration System
 A modern, frontend-only Patient Registration System built with Next.js and powered by pgLite for client-side persistent storage and automatic tab synchronization.
 
 🚀 Features
 
-Register New Patients with essential details.
-Persistent Data Storage using pgLite — survives page reloads.
-Real-Time Tab Sync — updates reflect across multiple browser tabs instantly.
-Fully client-side — no backend required.
-Lightweight, fast, and easy to integrate.
+✅ Register New Patients with essential details.
+
+💾 Persistent Data Storage using pgLite — survives page reloads.
+
+🔄 Real-Time Tab Sync — updates reflect across multiple browser tabs instantly.
+
+⚡ Fully client-side — no backend required.
+
+📦 Lightweight, fast, and easy to integrate.
 
 🛠️ Tech Stack
 Framework: Next.js
