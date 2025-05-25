@@ -25,7 +25,6 @@ export const initializeDB = async () => {
     try {
       console.log("Initializing PGlite database...");
 
-      // Try persistent database first with IndexedDB backend
       try {
         console.log("Attempting persistent database with IndexedDB...");
         db = new PGlite({
@@ -33,7 +32,6 @@ export const initializeDB = async () => {
           debug: false,
         });
 
-        // Wait for initialization and test the connection
         await new Promise((resolve) => setTimeout(resolve, 500));
         await db.query("SELECT 1");
         console.log("Persistent database (IndexedDB) initialized successfully");
@@ -44,7 +42,6 @@ export const initializeDB = async () => {
         );
 
         try {
-          // Try file system persistence
           db = new PGlite({
             dataDir: DB_NAME,
             debug: false,
@@ -61,14 +58,12 @@ export const initializeDB = async () => {
             fsError
           );
 
-          // Final fallback to in-memory database
           db = new PGlite();
           await new Promise((resolve) => setTimeout(resolve, 200));
           console.log("In-memory database initialized as fallback");
         }
       }
 
-      // Create the patients table with enhanced schema
       await db.query(`
         CREATE TABLE IF NOT EXISTS patients (
           id SERIAL PRIMARY KEY,
@@ -84,35 +79,12 @@ export const initializeDB = async () => {
         )
       `);
 
-      // Create an index for better performance
       await db.query(`
         CREATE INDEX IF NOT EXISTS idx_patients_name 
         ON patients(lastName, firstName)
       `);
 
-      // Create a trigger to update the updatedAt timestamp
-      await db.query(`
-        CREATE OR REPLACE FUNCTION update_updated_at_column()
-        RETURNS TRIGGER AS $$
-        BEGIN
-          NEW.updatedAt = CURRENT_TIMESTAMP;
-          RETURN NEW;
-        END;
-        $$ language 'plpgsql'
-      `);
-
-      await db.query(`
-        DROP TRIGGER IF EXISTS update_patients_updated_at ON patients
-      `);
-
-      await db.query(`
-        CREATE TRIGGER update_patients_updated_at
-        BEFORE UPDATE ON patients
-        FOR EACH ROW
-        EXECUTE FUNCTION update_updated_at_column()
-      `);
-
-      console.log("Database schema and triggers created successfully");
+      console.log("Database schema created successfully");
       return db;
     } catch (error) {
       console.error("Critical error initializing database:", error);
@@ -124,7 +96,6 @@ export const initializeDB = async () => {
   return initPromise;
 };
 
-// Enhanced notification system for cross-tab synchronization
 const notifyTabs = (operation, data = null) => {
   try {
     const channel = new BroadcastChannel("patient_app_channel");
@@ -133,10 +104,13 @@ const notifyTabs = (operation, data = null) => {
       operation,
       timestamp: Date.now(),
       data,
+      tabId: Math.random().toString(36).substr(2, 9),
     };
+
     channel.postMessage(message);
     channel.close();
-    console.log(`Notified other tabs about ${operation}`);
+
+    console.log(`Broadcasting ${operation} to other tabs`, data);
   } catch (error) {
     console.warn("Failed to notify other tabs:", error);
   }
@@ -224,12 +198,14 @@ export const updatePatient = async (id, updateData) => {
     updateData;
 
   try {
+    console.log("Updating patient with data:", { id, updateData });
+
     const result = await database.query(
       `UPDATE patients 
        SET firstName = $2, lastName = $3, dateOfBirth = $4, gender = $5, 
-           email = $6, phone = $7, address = $8
+           email = $6, phone = $7, address = $8, updatedAt = CURRENT_TIMESTAMP
        WHERE id = $1
-       RETURNING firstName, lastName`,
+       RETURNING id, firstName, lastName`,
       [
         id,
         firstName,
@@ -242,11 +218,15 @@ export const updatePatient = async (id, updateData) => {
       ]
     );
 
+    console.log("Update result:", result);
+
     if (result.rowCount > 0) {
-      notifyTabs("PATIENT_UPDATED", { id, ...result.rows[0] });
+      const updatedPatient = { id, ...result.rows[0] };
+      notifyTabs("PATIENT_UPDATED", updatedPatient);
       return true;
     }
 
+    console.warn("No rows were updated for patient ID:", id);
     return false;
   } catch (error) {
     console.error("Error updating patient:", error);
@@ -258,15 +238,22 @@ export const deletePatient = async (id) => {
   const database = await initializeDB();
 
   try {
+    console.log("Attempting to delete patient with ID:", id);
+
     const result = await database.query("DELETE FROM patients WHERE id = $1", [
       id,
     ]);
 
-    if (result.rowCount > 0) {
+    console.log("Delete result:", result);
+
+    const success = result?.rowCount > 0;
+
+    if (success) {
       notifyTabs("PATIENT_DELETED", { id });
       return true;
     }
 
+    console.warn("No rows were deleted for patient ID:", id);
     return false;
   } catch (error) {
     console.error("Error deleting patient:", error);
@@ -286,6 +273,7 @@ export const executeQuery = async (sqlQuery) => {
       "truncate ",
       "delete from patients",
       "alter table patients drop",
+      "update patients",
     ];
 
     const isDestructive = destructiveOperations.some((op) =>
@@ -298,9 +286,10 @@ export const executeQuery = async (sqlQuery) => {
       );
     }
 
+    console.log("Executing query:", sqlQuery);
     const result = await database.query(sqlQuery);
+    console.log("Query result:", result);
 
-    // Notify other tabs if this was a modifying query
     if (
       queryLower.startsWith("insert") ||
       queryLower.startsWith("update") ||
@@ -326,7 +315,6 @@ export const executeQuery = async (sqlQuery) => {
   }
 };
 
-// Function to check database health and reinitialize if needed
 export const checkDatabaseHealth = async () => {
   try {
     if (!db) {

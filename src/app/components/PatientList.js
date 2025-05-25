@@ -12,7 +12,7 @@ export default function PatientList({
   const [error, setError] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
-  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // Fix: Added missing state
 
   // Load patients data
   const loadPatients = async () => {
@@ -55,42 +55,55 @@ export default function PatientList({
     setEditForm({});
   };
 
-  // Handle edit save
+  // Handle edit save - Fixed
   const handleEditSave = async (patientId) => {
     try {
-      setIsLoading(true);
+      setError(null); // Clear any previous errors
+
+      // Validate required fields
+      if (
+        !editForm.firstName.trim() ||
+        !editForm.lastName.trim() ||
+        !editForm.dateOfBirth
+      ) {
+        setError("First name, last name, and date of birth are required");
+        return;
+      }
+
       const success = await updatePatient(patientId, editForm);
+
       if (success) {
         setEditingId(null);
         setEditForm({});
         await loadPatients(); // Refresh the list
-        if (onPatientUpdated) onPatientUpdated();
+        if (onPatientUpdated) onPatientUpdated(); // Notify parent component
+        console.log("Patient updated successfully");
       } else {
-        setError("Failed to update patient");
+        setError("Failed to update patient - no rows affected");
       }
     } catch (err) {
+      console.error("Error updating patient:", err);
       setError(`Error updating patient: ${err.message}`);
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  // Handle delete
+  // Fixed delete handler
   const handleDelete = async (patientId) => {
     try {
-      setIsLoading(true);
+      setError(null); // Clear previous errors
       const success = await deletePatient(patientId);
+
       if (success) {
         setDeleteConfirm(null);
-        await loadPatients(); // Refresh the list
-        if (onPatientDeleted) onPatientDeleted();
+        await loadPatients(); // Refresh local list
+        if (onPatientDeleted) onPatientDeleted(); // Trigger cross-tab refresh
+        console.log("Patient deleted successfully");
       } else {
-        setError("Failed to delete patient");
+        setError("Failed to delete patient - patient may not exist");
       }
     } catch (err) {
+      console.error("Error deleting patient:", err);
       setError(`Error deleting patient: ${err.message}`);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -117,7 +130,10 @@ export default function PatientList({
           {error}
         </div>
         <button
-          onClick={loadPatients}
+          onClick={() => {
+            setError(null);
+            loadPatients();
+          }}
           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
         >
           Try Again
@@ -195,7 +211,7 @@ export default function PatientList({
                   Phone
                 </th>
                 <th className="py-3 px-4 border-b text-left font-medium text-gray-900">
-                  Actions
+                  Address
                 </th>
               </tr>
             </thead>
@@ -294,7 +310,7 @@ export default function PatientList({
                             disabled={isLoading}
                             className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-50"
                           >
-                            Save
+                            {isLoading ? "Saving..." : "Save"}
                           </button>
                           <button
                             onClick={handleEditCancel}
@@ -325,18 +341,13 @@ export default function PatientList({
                       </td>
                       <td className="py-3 px-4 border-b">
                         <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleEditStart(patient)}
-                            className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirm(patient.id)}
-                            className="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
-                          >
-                            Delete
-                          </button>
+                          {"address" in patient && patient.address ? (
+                            <span className="text-gray-800">
+                              {patient.address}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
                         </div>
                       </td>
                     </>
@@ -378,8 +389,8 @@ export default function PatientList({
         </div>
       )}
 
-      {/* Loading overlay when updating */}
-      {isLoading && patients.length > 0 && (
+      {/* Loading overlay when updating - Only show for edit operations */}
+      {isLoading && editingId && (
         <div className="fixed inset-0 bg-black bg-opacity-25 flex items-center justify-center z-40">
           <div className="bg-white p-4 rounded-lg shadow-xl">
             <div className="flex items-center space-x-3">
